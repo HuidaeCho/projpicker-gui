@@ -17,48 +17,13 @@ that wraps around this project is available. It is a work in progress; join
 
 ![image](https://user-images.githubusercontent.com/7456117/107286973-4c3ceb00-6a2f-11eb-8789-4fdc33a1ce5d.png)
 
-## Desktop GUI
+## ProjPicker GUI
 
 ![image](https://user-images.githubusercontent.com/7456117/124940674-2d3f8680-dfd8-11eb-9a8c-7078543043f4.png)
 
-## ProjPicker running on Android using [Termux](https://termux.com/)
-
-![image](https://user-images.githubusercontent.com/7456117/124205470-4bc0f180-daaf-11eb-9632-98068fbe7bde.png)
-
-1. Install [Termux](https://termux.com/) from [F-Droid](https://f-droid.org/packages/com.termux/)
-2. Run it from Android
-3. Install Python: `pkg install python`
-4. Install ProjPicker: `pip install projpicker`
-
-## Branches
-
-### main
-
-This branch is the main development and release branch for both the API and CLI
-of ProjPicker.
-
-### rtree-oop
-
-The [rtree-oop](https://github.com/HuidaeCho/projpicker/tree/rtree-oop) branch
-utilizes [the rtree module](https://github.com/Toblerity/rtree) in an
-object-oriented programming (OOP) way. This branch supports point intersection.
-The rtree spatial indexing may not be able to handle reversed west and east
-longitudinal boundaries that cross the antimeridian. This branch is archived
-and not under active development.
-
 ## Change log
 
-See [here](https://github.com/HuidaeCho/projpicker/blob/main/projpicker/ChangeLog.md).
-
-## TODO
-
-1. API
-   * JavaScript
-2. GUI
-   * Desktop (wxPython)
-   * Web (client-only)
-3. CRS hints
-   * Crowdsourcing agency and product information? Is usage from PROJ enough?
+See [here](https://github.com/HuidaeCho/projpicker-gui/blob/main/projpicker-gui/ChangeLog.md).
 
 ## Versioning
 
