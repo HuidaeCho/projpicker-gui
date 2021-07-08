@@ -5,7 +5,7 @@
 
 ProjPicker GUI is the wxPython GUI for
 [ProjPicker](https://github.com/HuidaeCho/projpicker) (projection picker).
-ProjPicker s a Python module that allows the user to select all coordinate
+ProjPicker is a Python module that allows the user to select all coordinate
 reference systems (CRSs) whose extent completely contains given points,
 polylines, polygons, and bounding boxes using set-theoretic logical operators
 in a postfix notation. The goal is to make it easy and visual to select a
