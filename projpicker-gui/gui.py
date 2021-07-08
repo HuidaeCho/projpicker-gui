@@ -265,7 +265,6 @@ class ProjPickerGUI(wx.Frame):
         geom_type = "point"
         for geom in parsed_geoms:
             if geom in ("and", "or", "xor"):
-                print(geom)
                 self.switch_logical_operator(geom)
                 continue
             elif geom in ("point", "poly", "bbox"):
