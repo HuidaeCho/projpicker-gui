@@ -200,9 +200,7 @@ class ProjPickerGUI(wx.Frame):
             return button
 
         self.logical_buttons = {}
-        for op in ("and", "or", "xor"):
-            if op != "and":
-                parent.AddStretchSpacer()
+        for op in ("and", "or", "xor", "postfix"):
             button = create_button(op)
             parent.Add(button, 1)
             self.logical_buttons[op] = button
@@ -263,9 +261,16 @@ class ProjPickerGUI(wx.Frame):
 
         features = []
         geom_type = "point"
+
+        if parsed_geoms[0] in ("and", "or", "xor", "postfix"):
+            query_op = parsed_geoms[0]
+            self.switch_logical_operator(query_op)
+            del parsed_geoms[0]
+        else:
+            query_op = "and"
+
         for geom in parsed_geoms:
             if geom in ("and", "or", "xor"):
-                self.switch_logical_operator(geom)
                 continue
             elif geom in ("point", "poly", "bbox"):
                 geom_type = geom
