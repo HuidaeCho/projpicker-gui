@@ -201,9 +201,8 @@ class ProjPickerGUI(wx.Frame):
 
         self.logical_buttons = {}
         for op in ("and", "or", "xor", "postfix"):
-            button = create_button(op)
-            parent.Add(button, 1)
-            self.logical_buttons[op] = button
+            self.logical_buttons[op] = create_button(op)
+            parent.Add(self.logical_buttons[op], 1)
         self.switch_logical_operator("and")
 
 
