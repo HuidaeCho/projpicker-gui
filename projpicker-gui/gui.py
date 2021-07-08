@@ -200,9 +200,7 @@ class ProjPickerGUI(wx.Frame):
             return button
 
         self.logical_buttons = {}
-        for op in ("and", "or", "xor"):
-            if op != "and":
-                parent.AddStretchSpacer()
+        for op in ("and", "or", "xor", "postfix"):
             self.logical_buttons[op] = create_button(op)
             parent.Add(self.logical_buttons[op], 1)
         self.switch_logical_operator("and")
@@ -258,19 +256,22 @@ class ProjPickerGUI(wx.Frame):
         if self.geoms is None:
             return
 
-        parsed_geoms = ppik.parse_mixed_geoms(self.geoms)
+        geoms = ppik.parse_mixed_geoms(self.geoms)
 
-        features = []
+        self.json = {}
+        self.json["features"] = []
         geom_type = "point"
 
-        if parsed_geoms[0] in ("and", "or", "xor"):
-            query_op = parsed_geoms[0]
+        if geoms[0] in ("and", "or", "xor", "postfix"):
+            query_op = geoms[0]
             self.switch_logical_operator(query_op)
-            del parsed_geoms[0]
+            first_index = 1
         else:
             query_op = "and"
+            first_index = 0
 
-        for geom in parsed_geoms:
+        for g in range(first_index, len(geoms)):
+            geom = geoms[g]
             if geom in ("point", "poly", "bbox"):
                 geom_type = geom
                 continue
@@ -285,9 +286,10 @@ class ProjPickerGUI(wx.Frame):
                 s, n, w, e = geom
                 coors = [[[w, n], [e, n], [e, s], [w, s]]]
                 feature = self.create_geojson_feature("Polygon", coors)
-            features.append(feature)
+            self.json["features"].append(feature)
 
-        self.map.RunScript(f"drawGeometries({features})")
+        self.map.RunScript(f"drawGeometries({self.json['features']})")
+        self.query(geoms)
 
 
     def on_switch_logical_operator(self, event):
@@ -312,6 +314,8 @@ class ProjPickerGUI(wx.Frame):
         if geom_chunk == "pull":
             self.geom_buf = ""
         elif geom_chunk == "done":
+            self.geoms = None
+            ppik.message("Geometries from arguments deleted")
             self.json = json.loads(self.geom_buf)
             self.query(self.create_parsable_geoms())
             return
@@ -346,11 +350,15 @@ class ProjPickerGUI(wx.Frame):
     #################################
     # Utilities
     def switch_logical_operator(self, op):
+        if DEBUG:
+            ppik.message(f"Logical operator: {op}")
         self.logical_buttons[op].SetValue(True)
         self.logical_operator = op
-        self.query(self.create_parsable_geoms())
-        if DEBUG:
-            ppik.message(f"Logical operator: {self.logical_operator}")
+        if self.geoms is not None and self.geoms[0] == op == "postfix":
+            geoms = self.geoms
+        else:
+            geoms = self.create_parsable_geoms()
+        self.query(geoms)
 
 
     def create_parsable_geoms(self):
@@ -358,7 +366,12 @@ class ProjPickerGUI(wx.Frame):
         if self.json is None:
             return None
 
+        if self.logical_operator == "postfix":
+            ppik.message("Postfix using map geometries not supported yet")
+            return None
+
         geoms = self.logical_operator
+
         for feature in self.json["features"]:
             json_geom = feature["geometry"]
             geom_type = json_geom["type"]
