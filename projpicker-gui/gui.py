@@ -271,9 +271,7 @@ class ProjPickerGUI(wx.Frame):
             query_op = "and"
 
         for geom in parsed_geoms:
-            if geom in ("and", "or", "xor"):
-                continue
-            elif geom in ("point", "poly", "bbox"):
+            if geom in ("point", "poly", "bbox"):
                 geom_type = geom
                 continue
             elif type(geom) != list:
