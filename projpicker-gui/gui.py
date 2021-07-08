@@ -249,7 +249,7 @@ class ProjPickerGUI(wx.Frame):
     def on_load_map(self, event):
         self.map_loaded_count += 1
         if self.map_loaded_count != 2:
-            # XXX: EVT_WEBVIEW_LOADED is triggered twice? Drawing didn't work
+            # XXX: EVT_WEBVIEW_LOADED is triggered twice? Drawing doesn't work
             # on the first event
             return
 
