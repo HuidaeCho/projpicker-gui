@@ -245,6 +245,9 @@ class ProjPickerGUI(wx.Frame):
         self.unit_box.SetSelection(0)
         self.type_box.SetSelection(0)
 
+        self.unit_box.Bind(wx.EVT_COMBOBOX, self.on_filter)
+        self.type_box.Bind(wx.EVT_COMBOBOX, self.on_filter)
+
         parent.Add(self.unit_box, 1)
         parent.AddSpacer(25)
         parent.Add(self.type_box, 1)
@@ -355,6 +358,32 @@ class ProjPickerGUI(wx.Frame):
         self.map.RunScript(f"drawCRSBBox({crs_bbox_feature})")
 
 
+    def on_filter(self, event):
+        chosen_unit = "all" if not self.unit_box.GetValue() \
+                      else self.unit_box.GetValue()
+        chosen_type = "all" if not self.type_box.GetValue() \
+                      else self.type_box.GetValue()
+        if DEBUG:
+            print(f"Filtering | Unit: {chosen_unit} Type: {chosen_type}")
+
+        if chosen_type == "all" and chosen_unit == "all":
+            filtered_crs = self.crs
+        elif chosen_type == "all":
+            filtered_crs = filter(lambda b: b.unit == chosen_unit, self.crs)
+        elif chosen_unit == "all":
+            filtered_crs = filter(lambda b: b.proj_table == chosen_type, self.crs)
+        else:
+            filtered_crs = filter(lambda b: b.unit ==chosen_unit and
+                                   b.proj_table == chosen_type, self.crs)
+
+
+        self.crs_list.DeleteAllItems()
+
+        for crs in filtered_crs:
+            self.crs_list.Append((crs.crs_name,
+                                 f"{crs.crs_auth_name}:{crs.crs_code}"))
+
+
     def on_select(self, event):
         self.selected_crs = self.find_selected_crs()
         self.Destroy()
@@ -411,7 +440,6 @@ class ProjPickerGUI(wx.Frame):
         if geoms is not None:
             parsed_geoms = ppik.parse_mixed_geoms(geoms)
             self.crs = ppik.query_mixed_geoms(parsed_geoms)
-
             if DEBUG:
                 ppik.message(f"Query geometries: {parsed_geoms}")
                 ppik.message(f"Number of queried CRSs: {len(self.crs)}")
@@ -434,12 +462,14 @@ class ProjPickerGUI(wx.Frame):
         units = sorted(set([u.unit for u in projpicker_query]))
         units.insert(0, 'all')
         self.update_filter_combobox(self.unit_box, units)
+        self.unit_box.SetSelection(0)
 
 
     def populate_types(self, projpicker_query):
         types = sorted(set([t.proj_table for t in projpicker_query]))
         types.insert(0, 'all')
         self.update_filter_combobox(self.type_box, types)
+        self.type_box.SetSelection(0)
 
 
     def find_selected_crs(self):
