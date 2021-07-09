@@ -78,7 +78,7 @@ class ProjPickerGUI(wx.Frame):
         wx.Frame.__init__(self, *args, **kwargs)
         self.panel = wx.Panel(self)
 
-        main_size = wx.Size(900, 700)
+        main_size = wx.Size(950, 700)
 
         if layout == "big_list":
             # Sizers for layout
@@ -150,6 +150,7 @@ class ProjPickerGUI(wx.Frame):
         # Add widgets
         self.add_crs_list(crs_list_parent, crs_list_size)
         self.add_select_buttons(select_buttons_parent)
+        self.add_filter_comboxes(select_buttons_parent)
 
         self.add_crs_info(crs_info_parent, crs_info_size)
 
@@ -229,8 +230,24 @@ class ProjPickerGUI(wx.Frame):
         cancel_button.Bind(wx.EVT_BUTTON, self.on_close)
 
         parent.Add(select_button, 1)
-        parent.AddStretchSpacer()
+        parent.AddSpacer(25)
         parent.Add(cancel_button, 1)
+        parent.AddSpacer(50)
+
+
+    def add_filter_comboxes(self, parent):
+        self.unit_box = wx.ComboBox(self.panel, style=wx.CB_READONLY,
+                                    choices=["Unit"])
+        self.type_box = wx.ComboBox(self.panel, style=wx.CB_READONLY,
+                                    choices=["Type"])
+        # Value parameter does not work with CB_READONLY. Set label with
+        # SetSelection().
+        self.unit_box.SetSelection(0)
+        self.type_box.SetSelection(0)
+
+        parent.Add(self.unit_box, 1)
+        parent.AddSpacer(25)
+        parent.Add(self.type_box, 1)
 
 
     #################################
@@ -349,6 +366,9 @@ class ProjPickerGUI(wx.Frame):
 
     #################################
     # Utilities
+    def update_filter_combobox(self, combobox, filters):
+        combobox.SetItems(filters)
+
     def switch_logical_operator(self, op):
         if DEBUG:
             ppik.message(f"Logical operator: {op}")
@@ -400,11 +420,26 @@ class ProjPickerGUI(wx.Frame):
 
         self.crs_list.DeleteAllItems()
 
-        # Populate CRS list
+        # Populate CRS list and type/unit combo boxes
         if self.crs is not None and len(self.crs) > 0:
+            self.populate_units(self.crs)
+            self.populate_types(self.crs)
+
             for crs in self.crs:
                 self.crs_list.Append((crs.crs_name,
                                       f"{crs.crs_auth_name}:{crs.crs_code}"))
+
+
+    def populate_units(self, projpicker_query):
+        units = sorted(set([u.unit for u in projpicker_query]))
+        units.insert(0, 'all')
+        self.update_filter_combobox(self.unit_box, units)
+
+
+    def populate_types(self, projpicker_query):
+        types = sorted(set([t.proj_table for t in projpicker_query]))
+        types.insert(0, 'all')
+        self.update_filter_combobox(self.type_box, types)
 
 
     def find_selected_crs(self):
