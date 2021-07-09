@@ -253,7 +253,7 @@ class ProjPickerGUI(wx.Frame):
             # on the first event
             return
 
-        if self.geoms is None:
+        if len(self.geoms) == 0:
             return
 
         geoms = ppik.parse_mixed_geoms(self.geoms)
@@ -314,7 +314,7 @@ class ProjPickerGUI(wx.Frame):
         if geom_chunk == "pull":
             self.geom_buf = ""
         elif geom_chunk == "done":
-            self.geoms = None
+            self.geoms.clear()
             ppik.message("Geometries from arguments deleted")
             self.json = json.loads(self.geom_buf)
             self.query(self.create_parsable_geoms())
@@ -354,7 +354,7 @@ class ProjPickerGUI(wx.Frame):
             ppik.message(f"Logical operator: {op}")
         self.logical_buttons[op].SetValue(True)
         self.logical_operator = op
-        if self.geoms is not None and self.geoms[0] == op == "postfix":
+        if len(self.geoms) > 0 and self.geoms[0] == op == "postfix":
             geoms = self.geoms
         else:
             geoms = self.create_parsable_geoms()
