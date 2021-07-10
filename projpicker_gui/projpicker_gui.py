@@ -24,6 +24,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ################################################################################
 
+import os
 import sys
 import argparse
 import wx
@@ -35,7 +36,7 @@ import projpicker as ppik
 #################################
 # Constants
 DEBUG = True
-MAP_HTML = "map.html"
+MAP_HTML = os.path.join(os.path.dirname(__file__), "map.html")
 
 
 #################################

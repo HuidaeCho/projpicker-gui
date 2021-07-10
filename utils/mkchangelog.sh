@@ -1,6 +1,6 @@
 #!/bin/sh
 if [ "$1" = "-w" ]; then
-	file=../projpicker-gui/ChangeLog.md
+	file=../ChangeLog.md
 	hash='[`%h`](https://github.com/HuidaeCho/projpicker-gui/commit/%h)'
 else
 	file=/dev/stdout
@@ -8,9 +8,9 @@ else
 fi
 
 exclude=""
-for i in COPYING README.md setup.py deploy docs utils; do
-	exclude="$exclude :(exclude)../$i"
-done
+#for i in COPYING README.md setup.py deploy docs utils; do
+#	exclude="$exclude :(exclude)../$i"
+#done
 (
 echo "# Change log"
 echo
@@ -24,5 +24,6 @@ sed '
 }
 s/\( [^ ]\+\)\{6\}$//
 s/_/\\_/g
+/d846036/q
 '
 ) > $file
