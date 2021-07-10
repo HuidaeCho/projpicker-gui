@@ -1,6 +1,6 @@
 # ProjPicker GUI
 
-[![PyPI version](https://badge.fury.io/py/projpicker.svg)](https://badge.fury.io/py/projpicker)
+[![PyPI version](https://badge.fury.io/py/projpicker-gui.svg)](https://badge.fury.io/py/projpicker-gui)
 [![Documentation Status](https://readthedocs.org/projects/projpicker/badge/?version=latest)](https://projpicker.readthedocs.io/en/latest/?badge=latest)
 
 ProjPicker GUI is the wxPython GUI for
