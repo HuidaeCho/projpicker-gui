@@ -34,12 +34,6 @@ import projpicker as ppik
 
 
 #################################
-# Constants
-DEBUG = True
-MAP_HTML = os.path.join(os.path.dirname(__file__), "map.html")
-
-
-#################################
 # Geometry
 class Geometry:
     def __init__(self, type, coors):
@@ -63,11 +57,12 @@ class Geometry:
 #################################
 # GUI
 class ProjPickerGUI(wx.Frame):
-    def __init__(self, layout, geoms, *args, **kwargs):
+    def __init__(self, layout, verbose, geoms, *args, **kwargs):
         if layout not in ("big_list", "big_map"):
             raise ValueError(f"{layout}: Invalid layout; "
                              "Use big_list or big_map")
 
+        self.verbose = verbose
         self.geoms = geoms
         self.geom_buf = None
         self.json = {}
@@ -277,8 +272,11 @@ class ProjPickerGUI(wx.Frame):
     #################################
     # Map
     def add_map(self, parent, size):
+        map_path = os.path.join(os.path.dirname(__file__), "map.html")
+        map_url = wx.FileSystem.FileNameToURL(map_path)
+
         self.map = wx.html2.WebView.New(self.panel, size=size)
-        self.map.LoadURL(wx.FileSystem.FileNameToURL(MAP_HTML))
+        self.map.LoadURL(map_url)
         self.map.Bind(wx.html2.EVT_WEBVIEW_LOADED, self.on_load_map)
         self.map.Bind(wx.html2.EVT_WEBVIEW_TITLE_CHANGED, self.on_pull_geoms)
 
@@ -370,7 +368,8 @@ class ProjPickerGUI(wx.Frame):
             self.geom_buf = ""
         elif geom_chunk == "done":
             self.geoms.clear()
-            ppik.message("Geometries from arguments deleted")
+            if self.verbose:
+                ppik.message("Geometries from arguments deleted")
             self.json.clear()
             self.json.update(json.loads(self.geom_buf))
             self.query(self.create_parsable_geoms())
@@ -402,8 +401,8 @@ class ProjPickerGUI(wx.Frame):
             sel_type = sel_type.lower() + "_crs"
         sel_unit = self.unit_filter.GetValue()
 
-        if DEBUG:
-            print(f"Filtering | Type: {sel_type}, Unit: {sel_unit}")
+        if self.verbose:
+            ppik.message(f"Filtering | Type: {sel_type}, Unit: {sel_unit}")
 
         if (sel_type == self.type_filter.all_label and
             sel_unit == self.unit_filter.all_label):
@@ -435,7 +434,7 @@ class ProjPickerGUI(wx.Frame):
     #################################
     # Utilities
     def switch_logical_operator(self, op):
-        if DEBUG:
+        if self.verbose:
             ppik.message(f"Logical operator: {op}")
         self.logical_buttons[op].SetValue(True)
         self.logical_operator = op
@@ -493,7 +492,7 @@ class ProjPickerGUI(wx.Frame):
         if geoms is not None:
             parsed_geoms = ppik.parse_mixed_geoms(geoms)
             self.crs.extend(ppik.query_mixed_geoms(parsed_geoms))
-            if DEBUG:
+            if self.verbose:
                 ppik.message(f"Query geometries: {parsed_geoms}")
                 ppik.message(f"Number of queried CRSs: {len(self.crs)}")
 
@@ -607,6 +606,10 @@ def main():
             default="big_list",
             help="select the layout (default: big_list)")
     parser.add_argument(
+            "-v", "--verbose",
+            action="store_true",
+            help="verbosely print debugging messages")
+    parser.add_argument(
             "geometry",
             nargs="*",
             help="query geometry in latitude and longitude (point or poly) or "
@@ -617,10 +620,12 @@ def main():
     args = parser.parse_args()
 
     layout = args.layout
+    verbose = args.verbose
     geoms = args.geometry
 
     app = wx.App()
-    ppik_gui = ProjPickerGUI(layout, geoms, None, title="ProjPicker GUI")
+    ppik_gui = ProjPickerGUI(layout, verbose, geoms,
+                             None, title="ProjPicker GUI")
     app.MainLoop()
     ppik_gui.print_selected_crs_auth_code()
 
