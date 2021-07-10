@@ -70,87 +70,112 @@ class ProjPickerGUI(wx.Frame):
         self.geoms = geoms
         self.geom_buf = None
         self.json = None
-        self.crs = None
+        self.crs = []
         self.selected_crs = None
         self.map_loaded_count = 0
 
         # Create GUI
         wx.Frame.__init__(self, *args, **kwargs)
         self.panel = wx.Panel(self)
+        self.panel.SetSize(950, 700)
 
-        main_size = wx.Size(950, 700)
+        line_height = self.panel.GetFont().GetPixelSize().Height * 1.025
 
         if layout == "big_list":
             # Sizers for layout
             main = wx.BoxSizer(wx.HORIZONTAL)
+            main.size = self.panel.Size
+
             left = wx.BoxSizer(wx.VERTICAL)
-            bottom_left = wx.BoxSizer(wx.HORIZONTAL)
-            bottom_right = wx.BoxSizer(wx.HORIZONTAL)
+            left.size = wx.Size(main.size.Width // 2, main.size.Height)
+
+            left_middle = wx.BoxSizer(wx.HORIZONTAL)
+            left_middle.size = wx.Size(left.size.Width, 0)
+
+            left_bottom = wx.BoxSizer(wx.HORIZONTAL)
+            left_bottom.size = wx.Size(left.size.Width, 0)
+
             right = wx.BoxSizer(wx.VERTICAL)
+            right.size = wx.Size(main.size.Width - left.size.Width,
+                                 left.size.Height)
+
+            right_bottom = wx.BoxSizer(wx.HORIZONTAL)
+            right_bottom.size = wx.Size(right.size.Width, 0)
 
             # Widget sizes and parents
-            left.SetMinSize(main_size.Width // 2, main_size.Height)
-            right.SetMinSize(main_size.Width - left.MinSize.Width,
-                             left.MinSize.Height)
-
             crs_list_parent = left
-            crs_list_size = wx.Size(crs_list_parent.MinSize.Width,
-                                    crs_list_parent.MinSize.Height)
+            crs_list_size = crs_list_parent.size
 
-            select_buttons_parent = bottom_left
+            filters_parent = left_middle
+            filters_size = wx.Size(filters_parent.size.Width // 2 - 3,
+                                   line_height * 2)
 
-            line_height = self.panel.GetFont().GetPixelSize().Height * 1.025
-            num_lines_crs_info = self.get_crs_info(None)
+            select_buttons_parent = left_bottom
 
             crs_info_parent = right
-            crs_info_size = wx.Size(crs_info_parent.MinSize.Width,
-                                    int(num_lines_crs_info * line_height))
+            crs_info_num_lines = self.get_crs_info(None)
+            crs_info_size = wx.Size(crs_info_parent.size.Width,
+                                    crs_info_num_lines * line_height)
 
             map_parent = right
-            map_size = wx.Size(map_parent.MinSize.Width,
-                               main_size.Height - crs_info_size.Height)
+            map_size = wx.Size(map_parent.size.Width,
+                               map_parent.size.Height - crs_info_size.Height)
 
-            logical_buttons_parent = bottom_right
+            logical_buttons_parent = right_bottom
         elif layout == "big_map":
             # Sizers for layout
             main = wx.BoxSizer(wx.VERTICAL)
+            main.size = self.panel.Size
+
             top = wx.BoxSizer(wx.VERTICAL)
+            top.size = wx.Size(main.size.Width, main.size.Height // 2)
+
             top_bottom = wx.BoxSizer(wx.HORIZONTAL)
+            top_bottom.size = wx.Size(top.size.Width, 0)
+
             bottom = wx.BoxSizer(wx.HORIZONTAL)
+            bottom.size = wx.Size(main.size.Width,
+                                  main.size.Height - top.size.Height)
+
             bottom_left = wx.BoxSizer(wx.VERTICAL)
+            bottom_left.size = wx.Size(bottom.size.Width // 2,
+                                       bottom.size.Height)
+
             bottom_left_bottom = wx.BoxSizer(wx.HORIZONTAL)
+            bottom_left_bottom.size = wx.Size(bottom_left.size.Width, 0)
+
             bottom_right = wx.BoxSizer(wx.VERTICAL)
+            bottom_right.size = wx.Size(bottom.size.Width -
+                                        bottom_left.size.Width,
+                                        bottom.size.Height)
+
+            bottom_right_bottom = wx.BoxSizer(wx.HORIZONTAL)
+            bottom_right_bottom.size = wx.Size(bottom_right.size.Width, 0)
 
             # Widget sizes and parents
-            top.SetMinSize(main_size.Width, main_size.Height // 2)
-            bottom.SetMinSize(main_size.Width,
-                              main_size.Height - top.MinSize.Height)
-            bottom_left.SetMinSize(bottom.MinSize.Width // 2,
-                                   bottom.MinSize.Height)
-            bottom_right.SetMinSize(
-                    bottom.MinSize.Width - bottom_left.MinSize.Width,
-                    bottom.MinSize.Height)
-
             crs_list_parent = bottom_left
-            crs_list_size = wx.Size(crs_list_parent.MinSize.Width,
-                                    crs_list_parent.MinSize.Height)
+            crs_list_size = wx.Size(crs_list_parent.size.Width,
+                                    crs_list_parent.size.Height)
 
-            select_buttons_parent = bottom_left_bottom
+            filters_parent = bottom_left_bottom
+            filters_size = wx.Size(filters_parent.size.Width // 2 - 2,
+                                   line_height * 2)
+
+            select_buttons_parent = bottom_right_bottom
 
             crs_info_parent = bottom_right
-            crs_info_size = wx.Size(crs_info_parent.MinSize.Width,
-                                    crs_info_parent.MinSize.Height)
+            crs_info_size = wx.Size(crs_info_parent.size.Width,
+                                    crs_info_parent.size.Height)
 
             map_parent = top
-            map_size = wx.Size(map_parent.MinSize.Width,
-                               map_parent.MinSize.Height)
+            map_size = wx.Size(map_parent.size.Width, map_parent.size.Height)
 
             logical_buttons_parent = top_bottom
 
         # Add widgets
         self.add_crs_list(crs_list_parent, crs_list_size)
+        self.add_filters(filters_parent, filters_size)
         self.add_select_buttons(select_buttons_parent)
-        self.add_filter_comboxes(select_buttons_parent)
 
         self.add_crs_info(crs_info_parent, crs_info_size)
 
@@ -159,13 +184,16 @@ class ProjPickerGUI(wx.Frame):
 
         # Add panels to main
         if layout == "big_list":
-            left.Add(bottom_left, 0, wx.ALIGN_CENTER | wx.BOTTOM, 5)
-            right.Add(bottom_right, 0, wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, 5)
+            left.Add(left_middle, 0, wx.ALIGN_CENTER | wx.BOTTOM, 5)
+            left.Add(left_bottom, 0, wx.ALIGN_CENTER | wx.BOTTOM, 5)
+            right.Add(right_bottom, 0, wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, 5)
             main.Add(left)
             main.Add(right)
         elif layout == "big_map":
             top.Add(top_bottom, 0, wx.ALIGN_CENTER)
             bottom_left.Add(bottom_left_bottom, 0, wx.ALIGN_CENTER | wx.BOTTOM,
+                            5)
+            bottom_right.Add(bottom_right_bottom, 0, wx.ALIGN_CENTER | wx.BOTTOM,
                             5)
             bottom.Add(bottom_left)
             bottom.Add(bottom_right)
@@ -175,11 +203,74 @@ class ProjPickerGUI(wx.Frame):
         # Set sizer for main container
         self.panel.SetSizer(main)
 
-        self.SetSize(main_size)
-        self.SetMinSize(main_size)
-        self.SetMaxSize(main_size)
+        self.SetSize(self.panel.Size)
+        self.SetMinSize(self.panel.Size)
+        self.SetMaxSize(self.panel.Size)
 
         self.Show()
+
+
+    #################################
+    # CRS List
+    def add_crs_list(self, parent, size):
+        header = wx.StaticText(self.panel, 0, "Select a CRS", pos=(0, 0))
+
+        self.crs_list = wx.ListCtrl(self.panel, size=size,
+                                    style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
+        code_width = 100
+        self.crs_list.AppendColumn("Name", width=parent.size.Width - code_width)
+        self.crs_list.AppendColumn("Code", width=code_width)
+        self.crs_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_crs)
+
+        parent.Add(header, 0, wx.CENTER | wx.TOP, 5)
+        parent.Add(self.crs_list, 1, wx.ALL, 5)
+
+
+    def add_filters(self, parent, size):
+        self.type_filter = wx.ComboBox(self.panel, style=wx.CB_READONLY,
+                                       size=size)
+        self.type_filter.all_label = "All types"
+        self.type_filter.SetItems([self.type_filter.all_label])
+
+        self.unit_filter = wx.ComboBox(self.panel, style=wx.CB_READONLY,
+                                       size=size)
+        self.unit_filter.all_label = "All units"
+        self.unit_filter.SetItems([self.unit_filter.all_label])
+
+        # XXX: Value parameter does not work with CB_READONLY. Set label with
+        # SetSelection().
+        self.type_filter.SetSelection(0)
+        self.unit_filter.SetSelection(0)
+
+        self.type_filter.Bind(wx.EVT_COMBOBOX, self.on_filter)
+        self.unit_filter.Bind(wx.EVT_COMBOBOX, self.on_filter)
+
+        parent.Add(self.type_filter, 1)
+        parent.AddSpacer(parent.size.Width - 2 * size.Width)
+        parent.Add(self.unit_filter, 1)
+
+
+    def add_select_buttons(self, parent):
+        select_button = wx.Button(self.panel, label="Select")
+        select_button.Bind(wx.EVT_BUTTON, self.on_select)
+
+        cancel_button = wx.Button(self.panel, label="Cancel")
+        cancel_button.Bind(wx.EVT_BUTTON, self.on_close)
+
+        parent.Add(select_button, 1)
+        parent.AddStretchSpacer()
+        parent.Add(cancel_button, 1)
+
+
+    #################################
+    # CRS Info
+    def add_crs_info(self, parent, size):
+        header = wx.StaticText(self.panel, 0, "CRS Info")
+        self.crs_info = wx.TextCtrl(self.panel, size=size,
+                                    style=wx.TE_MULTILINE | wx.TE_READONLY)
+
+        parent.Add(header, 0, wx.CENTER | wx.TOP, 5)
+        parent.Add(self.crs_info, 1, wx.ALL, 5)
 
 
     #################################
@@ -205,63 +296,6 @@ class ProjPickerGUI(wx.Frame):
             self.logical_buttons[op] = create_button(op)
             parent.Add(self.logical_buttons[op], 1)
         self.switch_logical_operator("and")
-
-
-    #################################
-    # CRS List
-    def add_crs_list(self, parent, size):
-        header = wx.StaticText(self.panel, 0, "Select a CRS", pos=(0, 0))
-
-        self.crs_list = wx.ListCtrl(self.panel, size=size,
-                                    style=wx.LC_REPORT | wx.LC_SINGLE_SEL)
-        self.crs_list.AppendColumn("Name", width=parent.MinSize.Width - 100)
-        self.crs_list.AppendColumn("Code", width=100)
-        self.crs_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_select_crs)
-
-        parent.Add(header, 0, wx.CENTER | wx.TOP, 5)
-        parent.Add(self.crs_list, 1, wx.ALL, 5)
-
-
-    def add_select_buttons(self, parent):
-        select_button = wx.Button(self.panel, label="Select")
-        select_button.Bind(wx.EVT_BUTTON, self.on_select)
-
-        cancel_button = wx.Button(self.panel, label="Cancel")
-        cancel_button.Bind(wx.EVT_BUTTON, self.on_close)
-
-        parent.Add(select_button, 1)
-        parent.AddSpacer(25)
-        parent.Add(cancel_button, 1)
-        parent.AddSpacer(50)
-
-
-    def add_filter_comboxes(self, parent):
-        self.unit_box = wx.ComboBox(self.panel, style=wx.CB_READONLY,
-                                    choices=["Unit"])
-        self.type_box = wx.ComboBox(self.panel, style=wx.CB_READONLY,
-                                    choices=["Type"])
-        # Value parameter does not work with CB_READONLY. Set label with
-        # SetSelection().
-        self.unit_box.SetSelection(0)
-        self.type_box.SetSelection(0)
-
-        self.unit_box.Bind(wx.EVT_COMBOBOX, self.on_filter)
-        self.type_box.Bind(wx.EVT_COMBOBOX, self.on_filter)
-
-        parent.Add(self.unit_box, 1)
-        parent.AddSpacer(25)
-        parent.Add(self.type_box, 1)
-
-
-    #################################
-    # CRS Info
-    def add_crs_info(self, parent, size):
-        header = wx.StaticText(self.panel, 0, "CRS Info")
-        self.crs_info = wx.TextCtrl(self.panel, size=size,
-                                    style=wx.TE_MULTILINE | wx.TE_READONLY)
-
-        parent.Add(header, 0, wx.CENTER | wx.TOP, 5)
-        parent.Add(self.crs_info, 1, wx.ALL, 5)
 
 
     #################################
@@ -359,23 +393,26 @@ class ProjPickerGUI(wx.Frame):
 
 
     def on_filter(self, event):
-        chosen_unit = "all" if not self.unit_box.GetValue() \
-                      else self.unit_box.GetValue()
-        chosen_type = "all" if not self.type_box.GetValue() \
-                      else self.type_box.GetValue()
-        if DEBUG:
-            print(f"Filtering | Unit: {chosen_unit} Type: {chosen_type}")
-
-        if chosen_type == "all" and chosen_unit == "all":
-            filtered_crs = self.crs
-        elif chosen_type == "all":
-            filtered_crs = filter(lambda b: b.unit == chosen_unit, self.crs)
-        elif chosen_unit == "all":
-            filtered_crs = filter(lambda b: b.proj_table == chosen_type, self.crs)
+        sel_type = self.type_filter.GetValue()
+        if sel_type == self.type_filter.all_label:
+            sel_type = self.type_filter.all_label
         else:
-            filtered_crs = filter(lambda b: b.unit ==chosen_unit and
-                                   b.proj_table == chosen_type, self.crs)
+            sel_type = sel_type.lower() + "_crs"
+        sel_unit = self.unit_filter.GetValue()
 
+        if DEBUG:
+            print(f"Filtering | Type: {sel_type}, Unit: {sel_unit}")
+
+        if (sel_type == self.type_filter.all_label and
+            sel_unit == self.unit_filter.all_label):
+            filtered_crs = self.crs
+        elif sel_type == self.type_filter.all_label:
+            filtered_crs = filter(lambda c: c.unit == sel_unit, self.crs)
+        elif sel_unit == self.unit_filter.all_label:
+            filtered_crs = filter(lambda c: c.proj_table == sel_type, self.crs)
+        else:
+            filtered_crs = filter(lambda c: c.proj_table == sel_type and
+                                            c.unit == sel_unit, self.crs)
 
         self.crs_list.DeleteAllItems()
 
@@ -395,9 +432,6 @@ class ProjPickerGUI(wx.Frame):
 
     #################################
     # Utilities
-    def update_filter_combobox(self, combobox, filters):
-        combobox.SetItems(filters)
-
     def switch_logical_operator(self, op):
         if DEBUG:
             ppik.message(f"Logical operator: {op}")
@@ -437,39 +471,39 @@ class ProjPickerGUI(wx.Frame):
 
 
     def query(self, geoms):
+        def populate_types():
+            types = [self.type_filter.all_label]
+            types.extend(sorted(set([
+                crs.proj_table.replace("_crs", "").capitalize()
+                for crs in self.crs])))
+            self.type_filter.SetItems(types)
+            self.type_filter.SetSelection(0)
+
+
+        def populate_units():
+            units = [self.unit_filter.all_label]
+            units.extend(sorted(set([crs.unit for crs in self.crs])))
+            self.unit_filter.SetItems(units)
+            self.unit_filter.SetSelection(0)
+
+
+        self.crs.clear()
         if geoms is not None:
             parsed_geoms = ppik.parse_mixed_geoms(geoms)
-            self.crs = ppik.query_mixed_geoms(parsed_geoms)
+            self.crs.extend(ppik.query_mixed_geoms(parsed_geoms))
             if DEBUG:
                 ppik.message(f"Query geometries: {parsed_geoms}")
                 ppik.message(f"Number of queried CRSs: {len(self.crs)}")
-        else:
-            self.crs = None
 
         self.crs_list.DeleteAllItems()
 
         # Populate CRS list and type/unit combo boxes
-        if self.crs is not None and len(self.crs) > 0:
-            self.populate_units(self.crs)
-            self.populate_types(self.crs)
+        populate_types()
+        populate_units()
 
-            for crs in self.crs:
-                self.crs_list.Append((crs.crs_name,
-                                      f"{crs.crs_auth_name}:{crs.crs_code}"))
-
-
-    def populate_units(self, projpicker_query):
-        units = sorted(set([u.unit for u in projpicker_query]))
-        units.insert(0, 'all')
-        self.update_filter_combobox(self.unit_box, units)
-        self.unit_box.SetSelection(0)
-
-
-    def populate_types(self, projpicker_query):
-        types = sorted(set([t.proj_table for t in projpicker_query]))
-        types.insert(0, 'all')
-        self.update_filter_combobox(self.type_box, types)
-        self.type_box.SetSelection(0)
+        for crs in self.crs:
+            self.crs_list.Append((crs.crs_name,
+                                  f"{crs.crs_auth_name}:{crs.crs_code}"))
 
 
     def find_selected_crs(self):
