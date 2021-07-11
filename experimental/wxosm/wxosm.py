@@ -37,7 +37,7 @@ import projpicker as ppik
 
 
 #################################
-# OpenStreetMap
+# OpenStreetMap Downloader by Huidae Cho
 # https://stackoverflow.com/a/62607111/16079666
 class OpenStreetMapDownloader:
     def __init__(self, new_image_func, set_tile_func, set_image_func,
