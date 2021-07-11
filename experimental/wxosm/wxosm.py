@@ -50,8 +50,6 @@ class OpenStreetMapDownloader:
         self.z_max = 18
         self.lat_min = -85.0511287798066
         self.lat_max = 85.0511287798066
-        self.lon_min = -180
-        self.lon_max = 180
         self.zoom_accum = 0
         # TODO: Tile caching mechanism
         self.tiles = {}
@@ -97,9 +95,17 @@ class OpenStreetMapDownloader:
             return lat_deg, lon_deg
 
 
-        self.lat = lat
-        self.lon = lon
-        self.z = z = min(max(z, self.z_min), self.z_max)
+        z = min(max(z, self.z_min), self.z_max)
+        num_tiles = 2**z
+
+        if num_tiles * 256 < self.height:
+            lat = 0
+
+        # cross the antimeridian
+        if lon < -180:
+            lon = 360 - lon
+        elif lon > 180:
+            lon -= 360
 
         # calculate x,y offsets to lat,lon within width,height
         x, y = latlon_to_tiles(lat, lon, z)
@@ -112,16 +118,28 @@ class OpenStreetMapDownloader:
         xoff = int(self.width / 2 + (lon - w) / self.lon_res)
         yoff = int(self.height / 2 + (lat - n) / self.lat_res)
 
-        xmin = max(x - math.ceil(xoff / 256), 0)
+        if num_tiles * 256 >= self.height:
+            # restrict lat
+            if yoff - y * 256 > 0:
+                lat -= (yoff - y * 256) * self.lat_res
+
+            # XXX: supposed to be < height - 1, but lat += (height - 1...
+            # leaves a single-pixel border at the bottom; maybe, a rounding off
+            # error
+            elif yoff + (num_tiles - y) * 256 < self.height:
+                lat += (self.height - yoff
+                        - (num_tiles - y) * 256) * self.lat_res
+            yoff = int(self.height / 2 + (lat - n) / self.lat_res)
+
+        self.lat = lat
+        self.lon = lon
+        self.z = z
+
+        xmin = x - math.ceil(xoff / 256)
         ymin = max(y - math.ceil(yoff / 256), 0)
         xmax = x + math.ceil((self.width - xoff - 256) / 256)
-        ymax = y + math.ceil((self.height - yoff - 256) / 256)
-
-        n, w = tiles_to_nw_latlon(xmax, ymax, z)
-        if abs(w - self.lon_max) <= sys.float_info.epsilon:
-            xmax -= 1
-        if abs(n - self.lat_min) <= sys.float_info.epsilon:
-            ymax -= 1
+        ymax = min(y + math.ceil((self.height - yoff - 256) / 256),
+                   num_tiles - 1)
 
         image = self.new_image_func(self.width, self.height)
 
@@ -129,11 +147,16 @@ class OpenStreetMapDownloader:
             ppik.message(f"image size: {self.width} {self.height}")
 
         for xi in range(xmin, xmax + 1):
+            xt = xi % num_tiles
             for yi in range(ymin, ymax + 1):
                 try:
-                    tile_url = self.get_tile_url(xi, yi, z)
-                    tile_image = self.download_tile(xi, yi, z)
+                    tile_url = self.get_tile_url(xt, yi, z)
+                    tile_image = self.download_tile(xt, yi, z)
                     tile_x = xoff + (xi - x) * 256
+                    while tile_x <= -256:
+                        tile_x += 256 * num_tiles
+                    while tile_x > self.width:
+                        tile_x -= 256 * num_tiles
                     tile_y = yoff + (yi - y) * 256
                     self.set_tile_func(image, tile_image, tile_x, tile_y)
                     if self.verbose:
@@ -167,22 +190,30 @@ class OpenStreetMapDownloader:
 
     def zoom(self, x, y, zoom_accum):
         self.zoom_accum += zoom_accum / 10
-        if abs(self.zoom_accum) > 1:
+        if ((self.z < self.z_max and self.zoom_accum > 1) or
+            (self.z > self.z_min and self.zoom_accum < -1)):
             # pinned zoom at x,y
             # lat,lon at x,y
             lat = self.lat - self.lat_res * (y - self.height / 2)
             lon = self.lon - self.lon_res * (x - self.width / 2)
             dz = 1 if self.zoom_accum > 0 else -1
+            z = self.z + dz
             if dz > 0:
                 # each zoom up doubles
                 lat = (lat + self.lat) / 2
                 lon = (lon + self.lon) / 2
+                if self.verbose:
+                    ppik.message(f"zoom in: {z}")
             else:
                 # each zoom down halves
                 lat += (self.lat - lat) * 2
                 lon += (self.lon - lon) * 2
-            z = self.z + (1 if self.zoom_accum > 0 else -1)
+                if self.verbose:
+                    ppik.message(f"zoom out: {z}")
             self.refresh_map(lat, lon, z)
+            self.reset_zoom()
+        elif ((self.z == self.z_max and self.zoom_accum > 1) or
+              (self.z == self.z_min and self.zoom_accum < -1)):
             self.reset_zoom()
 
 
@@ -223,9 +254,9 @@ class ProjPickerGUI(wx.Frame):
         self.selected_crs = None
 
         # TODO: Hard-coded lat,lon for UNG Gainesville for testing
-        self.lat = 0 #34.2347566
-        self.lon = 0 #-83.8676613
-        self.zoom = 0 #5
+        self.lat = 34.2347566
+        self.lon = -83.8676613
+        self.zoom = 0
         # End of hard-coding
 
         # Create GUI
