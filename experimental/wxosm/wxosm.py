@@ -172,9 +172,15 @@ class OpenStreetMapDownloader:
             # lat,lon at x,y
             lat = self.lat - self.lat_res * (y - self.height / 2)
             lon = self.lon - self.lon_res * (x - self.width / 2)
-            # each zoom level doubles
-            lat = (lat + self.lat) / 2
-            lon = (lon + self.lon) / 2
+            dz = 1 if self.zoom_accum > 0 else -1
+            if dz > 0:
+                # each zoom up doubles
+                lat = (lat + self.lat) / 2
+                lon = (lon + self.lon) / 2
+            else:
+                # each zoom down halves
+                lat += (self.lat - lat) * 2
+                lon += (self.lon - lon) * 2
             z = self.z + (1 if self.zoom_accum > 0 else -1)
             self.refresh_map(lat, lon, z)
             self.reset_zoom()
