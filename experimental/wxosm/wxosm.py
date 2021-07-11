@@ -38,7 +38,7 @@ import projpicker as ppik
 
 #################################
 # OpenStreetMap Downloader by Huidae Cho
-# To be seprated as a standalone module and used for the core GUI?
+# To be separated as a standalone module and used for the core GUI?
 # https://stackoverflow.com/a/62607111/16079666
 class OpenStreetMapDownloader:
     def __init__(self, new_image_func, set_tile_func, set_image_func,
