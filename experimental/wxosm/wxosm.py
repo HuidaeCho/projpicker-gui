@@ -37,9 +37,9 @@ import projpicker as ppik
 
 
 #################################
-# OpenStreetMap Downloader by Huidae Cho
+# OpenStreetMap Downloader by Huidae Cho since July 10, 2021
 # To be separated as a standalone module and used for the core GUI?
-# https://stackoverflow.com/a/62607111/16079666
+# Do not add GUI frame-specific code; Use function pointers instead
 class OpenStreetMapDownloader:
     def __init__(self, new_image_func, set_tile_func, set_image_func,
                  verbose=False):
@@ -81,6 +81,7 @@ class OpenStreetMapDownloader:
 
 
     def download_map(self, lat, lon, z):
+        # Adapted from https://stackoverflow.com/a/62607111/16079666
         def latlon_to_tiles(lat_deg, lon_deg, z):
             lat = math.radians(lat_deg)
             n = 2**z
