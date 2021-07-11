@@ -56,6 +56,7 @@ class OpenStreetMapDownloader:
         tile_url = self.tile_url_tpl.format(x=x, y=y, z=zoom)
         tile_key = f"{zoom}/{x}/{y}"
         if tile_key not in self.tiles:
+            # need this header to successfully download tiles from the server
             req = urllib.request.Request(tile_url, headers={
                 "User-Agent": "urllib.request"
             })
