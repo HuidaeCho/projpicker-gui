@@ -31,6 +31,7 @@ import os
 import sys
 import argparse
 import wx
+import wx.lib.statbmp
 import json
 import projpicker as ppik
 
@@ -39,9 +40,19 @@ import projpicker as ppik
 # OpenStreetMap
 # https://stackoverflow.com/a/62607111/16079666
 class OpenStreetMapDownloader:
-    def __init__(self, verbose=False):
+    def __init__(self, new_image_func, set_tile_func, set_image_func,
+                 verbose=False):
+        self.new_image_func = new_image_func
+        self.set_tile_func = set_tile_func
+        self.set_image_func = set_image_func
         self.verbose = verbose
-        self.tile_url_tpl = "http://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        self.z_min = 0
+        self.z_max = 18
+        self.lat_min = -85.0511287798066
+        self.lat_max = 85.0511287798066
+        self.lon_min = -180
+        self.lon_max = 180
+        self.zoom_accum = 0
         # TODO: Tile caching mechanism
         self.tiles = {}
 
@@ -52,31 +63,35 @@ class OpenStreetMapDownloader:
         self.max_cached_tiles = int(2 * (width / 256) * (height / 256))
 
 
-    def download_tile(self, x, y, zoom):
-        tile_url = self.tile_url_tpl.format(x=x, y=y, z=zoom)
-        tile_key = f"{zoom}/{x}/{y}"
+    def get_tile_url(self, x, y, z):
+        return f"http://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+
+
+    def download_tile(self, x, y, z):
+        tile_url = self.get_tile_url(x, y, z)
+        tile_key = f"{z}/{x}/{y}"
         if tile_key not in self.tiles:
             # need this header to successfully download tiles from the server
             req = urllib.request.Request(tile_url, headers={
                 "User-Agent": "urllib.request"
             })
-            with urllib.request.urlopen(req) as stream:
-                self.tiles[tile_key] = wx.Image(io.BytesIO(stream.read()))
+            with urllib.request.urlopen(req) as f:
+                self.tiles[tile_key] = self.new_image_func(io.BytesIO(f.read()))
         tile_image = self.tiles[tile_key]
-        return tile_image, tile_url
+        return tile_image
 
 
-    def download_map(self, lat, lon, zoom):
-        def latlon_to_tiles(lat_deg, lon_deg, zoom):
+    def download_map(self, lat, lon, z):
+        def latlon_to_tiles(lat_deg, lon_deg, z):
             lat = math.radians(lat_deg)
-            n = 2**zoom
+            n = 2**z
             x = int((lon_deg+180)/360*n)
             y = int((1-math.log(math.tan(lat)+(1/math.cos(lat)))/math.pi)/2*n)
             return x, y
 
 
-        def tiles_to_nw_latlon(x, y, zoom):
-            n = 2**zoom
+        def tiles_to_nw_latlon(x, y, z):
+            n = 2**z
             lat_deg = math.degrees(math.atan(math.sinh(math.pi*(1-2*y/n))))
             lon_deg = x/n*360-180
             return lat_deg, lon_deg
@@ -84,12 +99,12 @@ class OpenStreetMapDownloader:
 
         self.lat = lat
         self.lon = lon
-        self.zoom = zoom
+        self.z = z = min(max(z, self.z_min), self.z_max)
 
         # calculate x,y offsets to lat,lon within width,height
-        x, y = latlon_to_tiles(lat, lon, zoom)
-        n, w = tiles_to_nw_latlon(x, y, zoom)
-        s, e = tiles_to_nw_latlon(x + 1, y + 1, zoom)
+        x, y = latlon_to_tiles(lat, lon, z)
+        n, w = tiles_to_nw_latlon(x, y, z)
+        s, e = tiles_to_nw_latlon(x + 1, y + 1, z)
 
         self.lat_res = (n - s) / 256
         self.lon_res = (w - e) / 256
@@ -97,12 +112,18 @@ class OpenStreetMapDownloader:
         xoff = int(self.width / 2 + (lon - w) / self.lon_res)
         yoff = int(self.height / 2 + (lat - n) / self.lat_res)
 
-        xmin = x - math.ceil(xoff / 256)
-        ymin = y - math.ceil(yoff / 256)
+        xmin = max(x - math.ceil(xoff / 256), 0)
+        ymin = max(y - math.ceil(yoff / 256), 0)
         xmax = x + math.ceil((self.width - xoff - 256) / 256)
         ymax = y + math.ceil((self.height - yoff - 256) / 256)
 
-        image = wx.Image(self.width, self.height)
+        n, w = tiles_to_nw_latlon(xmax, ymax, z)
+        if abs(w - self.lon_max) <= sys.float_info.epsilon:
+            xmax -= 1
+        if abs(n - self.lat_min) <= sys.float_info.epsilon:
+            ymax -= 1
+
+        image = self.new_image_func(self.width, self.height)
 
         if self.verbose:
             ppik.message(f"image size: {self.width} {self.height}")
@@ -110,10 +131,11 @@ class OpenStreetMapDownloader:
         for xi in range(xmin, xmax + 1):
             for yi in range(ymin, ymax + 1):
                 try:
-                    tile_image, tile_url = self.download_tile(xi, yi, zoom)
+                    tile_url = self.get_tile_url(xi, yi, z)
+                    tile_image = self.download_tile(xi, yi, z)
                     tile_x = xoff + (xi - x) * 256
                     tile_y = yoff + (yi - y) * 256
-                    image.Paste(tile_image, tile_x, tile_y)
+                    self.set_tile_func(image, tile_image, tile_x, tile_y)
                     if self.verbose:
                         ppik.message(f"{tile_url} pasted at {tile_x},{tile_y}")
                 except Exception as e:
@@ -122,16 +144,40 @@ class OpenStreetMapDownloader:
         return image
 
 
+    def refresh_map(self, lat, lon, z):
+        image = self.download_map(lat, lon, z)
+        self.set_image_func(image)
+
+
     def start_dragging(self, x, y):
-        self.start_x = x
-        self.start_y = y
+        self.drag_x = x
+        self.drag_y = y
 
 
     def drag(self, x, y):
-        lat = self.lat + self.lat_res * (y - self.start_y)
-        lon = self.lon + self.lon_res * (x - self.start_x)
+        lat = self.lat + self.lat_res * (y - self.drag_y)
+        lon = self.lon + self.lon_res * (x - self.drag_x)
         self.start_dragging(x, y)
-        return self.download_map(lat, lon, self.zoom)
+        self.refresh_map(lat, lon, self.z)
+
+
+    def reset_zoom(self):
+        self.zoom_accum = 0
+
+
+    def zoom(self, x, y, zoom_accum):
+        self.zoom_accum += zoom_accum / 10
+        if abs(self.zoom_accum) > 1:
+            # pinned zoom at x,y
+            # lat,lon at x,y
+            lat = self.lat - self.lat_res * (y - self.height / 2)
+            lon = self.lon - self.lon_res * (x - self.width / 2)
+            # each zoom level doubles
+            lat = (lat + self.lat) / 2
+            lon = (lon + self.lon) / 2
+            z = self.z + (1 if self.zoom_accum > 0 else -1)
+            self.refresh_map(lat, lon, z)
+            self.reset_zoom()
 
 
 #################################
@@ -171,9 +217,9 @@ class ProjPickerGUI(wx.Frame):
         self.selected_crs = None
 
         # TODO: Hard-coded lat,lon for UNG Gainesville for testing
-        self.lat = 34.2347566
-        self.lon = -83.8676613
-        self.zoom = 5
+        self.lat = 0 #34.2347566
+        self.lon = 0 #-83.8676613
+        self.zoom = 0 #5
         # End of hard-coding
 
         # Create GUI
@@ -380,27 +426,45 @@ class ProjPickerGUI(wx.Frame):
     #################################
     # Map
     def add_map(self, parent, size):
-        self.map = wx.StaticBitmap(self.panel, size=size)
-        self.map.osm = OpenStreetMapDownloader(self.verbose)
+        def on_mouse(event):
+            if event.ButtonDown(wx.MOUSE_BTN_LEFT):
+                osm.start_dragging(event.x, event.y)
+            elif event.Dragging():
+                osm.drag(event.x, event.y)
+            elif event.WheelDelta > 0:
+                osm.zoom(event.x, event.y,
+                         event.WheelRotation / event.WheelDelta)
 
-        # use the resize event to find the final size of the widget; Not able
-        # to find a better way
-        self.map.Bind(wx.EVT_SIZE, self.on_resize_map)
+            if event.WheelDelta == 0:
+                osm.reset_zoom()
 
-        self.map.Bind(wx.EVT_LEFT_DOWN, self.on_left_click_map)
-        self.map.Bind(wx.EVT_MOTION, self.on_move_map)
-        # XXX: doesn't recognize TrackPoint wheel simulation
-        self.map.Bind(wx.EVT_MOUSEWHEEL, self.on_zoom_map)
+
+        self.map = wx.lib.statbmp.GenStaticBitmap(self.panel, wx.ID_ANY,
+                                                  wx.NullBitmap, size=size)
+        self.map.osm = osm = OpenStreetMapDownloader(
+                wx.Image,
+                lambda image, tile, x, y: image.Paste(tile, x, y),
+                lambda image: self.map.SetBitmap(wx.Bitmap(image)),
+                self.verbose)
+        osm.set_map_size(self.map.Size.Width, self.map.Size.Height)
+        osm.refresh_map(self.lat, self.lon, self.zoom)
+
+        self.map.Bind(wx.EVT_MOUSE_EVENTS, on_mouse)
 
         parent.Add(self.map, 1, wx.ALL, 5)
 
 
     def add_logical_buttons(self, parent):
+        def on_switch(event):
+            self.switch_logical_operator(event.GetEventObject().Label)
+
+
         # Higher level abstraction to bind buttons
         def create_button(op):
             button = wx.RadioButton(self.panel, label=op)
-            button.Bind(wx.EVT_RADIOBUTTON, self.on_switch_logical_operator)
+            button.Bind(wx.EVT_RADIOBUTTON, on_switch)
             return button
+
 
         self.logical_buttons = {}
         for op in ("and", "or", "xor", "postfix"):
@@ -411,43 +475,6 @@ class ProjPickerGUI(wx.Frame):
 
     #################################
     # Event Handlers
-    def on_resize_map(self, event):
-        # This event is triggered even if self.map itself is not resized when
-        # its parent is
-        if self.verbose:
-            ppik.message(f"on_resize_map: {self.map.Size}")
-
-        if not self.map.osm.tiles:
-            lat = self.lat
-            lon = self.lon
-            zoom = self.zoom
-        else:
-            lat = self.map.osm.lat
-            lon = self.map.osm.lon
-            zoom = self.map.osm.zoom
-
-        self.map.SetSize(event.GetSize())
-        self.map.osm.set_map_size(self.map.Size.Width, self.map.Size.Height)
-        image = self.map.osm.download_map(lat, lon, zoom)
-        print(image.GetSize())
-        print(self.map.GetSize())
-        self.map.SetBitmap(wx.Bitmap(image))
-
-
-    def on_left_click_map(self, event):
-        self.map.osm.start_dragging(event.x, event.y)
-
-
-    def on_move_map(self, event):
-        if event.Dragging():
-            image = self.map.osm.drag(event.x, event.y)
-            self.map.SetBitmap(wx.Bitmap(image))
-
-
-    def on_zoom_map(self, event):
-        ppik.message("TODO")
-
-
     def on_load_map(self, event):
         self.map_loaded_count += 1
         if self.map_loaded_count != 2:
@@ -492,10 +519,6 @@ class ProjPickerGUI(wx.Frame):
 
         self.map.RunScript(f"drawGeometries({self.json['features']})")
         self.query(geoms)
-
-
-    def on_switch_logical_operator(self, event):
-        self.switch_logical_operator(event.GetEventObject().Label)
 
 
     def on_pull_geoms(self, event):
