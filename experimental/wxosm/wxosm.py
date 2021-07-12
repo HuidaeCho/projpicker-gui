@@ -34,7 +34,7 @@ import wx
 import wx.lib.statbmp
 import json
 import projpicker as ppik
-from openstreetmap import OpenStreetMap
+from projpicker.openstreetmap import OpenStreetMap
 
 
 #################################
