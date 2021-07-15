@@ -63,6 +63,18 @@ def create_parsable_geoms(geojson):
 
     return geoms
 
+
+def bbox_to_json(bbox_list):
+    crs_json = {}
+    for crs in bbox_list:
+        entry = {}
+        crs_dict = crs._asdict()
+        for key in list(crs_dict.keys()):
+            entry[key] = crs_dict[key]
+        crs_json[f"{crs.crs_auth_name}|{crs.crs_code}"] = entry
+    return crs_json
+
+
 def query(geoms):
     crs_list = []
     crs = []
@@ -73,9 +85,7 @@ def query(geoms):
             ppik.message(f"Query geometries: {parsed_geoms}")
             ppik.message(f"Number of queried CRSs: {len(crs)}")
 
-    for crs in crs:
-        crs_list.append((crs.crs_name,
-                              f"{crs.crs_auth_name}:{crs.crs_code}"))
+    return crs
 
 
 # WEB LOGIC
@@ -84,16 +94,16 @@ def home():
     return render_template(MAP)
 
 
-@app.route('/data', methods=["POST"])
+@app.route('/data', methods=["POST", "GET"])
 def get_javascript_data():
     geojson = request.get_json()
     if VERBOSE:
         print(f"{colors.OKGREEN}Success!\n{colors.OKCYAN}{geojson}{colors.ENDC}")
     query_str = create_parsable_geoms(geojson)
     print(f"{colors.OKBLUE}{query_str}{colors.ENDC}")
-    query(query_str)
+    crs_list = query(query_str)
+    print(bbox_to_json(crs_list))
     return request.form
-
 
 
 # RUN
