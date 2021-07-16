@@ -2,7 +2,7 @@
 import os
 import json
 import projpicker as ppik
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, session
 
 class colors:
     HEADER = '\033[95m'
@@ -18,6 +18,7 @@ class colors:
 app = Flask(__name__, )
 app.debug = True
 app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.secret_key = 'dljsaklqk24e21cjn!Ew@@dsa5'
 
 #################################
 # Constants
@@ -71,7 +72,7 @@ def bbox_to_json(bbox_list):
         crs_dict = crs._asdict()
         for key in list(crs_dict.keys()):
             entry[key] = crs_dict[key]
-        crs_json[f"{crs.crs_auth_name}|{crs.crs_code}"] = entry
+        crs_json[f"{crs.crs_auth_name}:{crs.crs_code}"] = entry
     return crs_json
 
 
@@ -89,21 +90,33 @@ def query(geoms):
 
 
 # WEB LOGIC
+projpick_query = ""
 @app.route("/")
 def home():
-    return render_template(MAP)
+    global projpick_query
+    return render_template(MAP, projpick_query="")
 
 
 @app.route('/data', methods=["POST", "GET"])
 def get_javascript_data():
-    geojson = request.get_json()
-    if VERBOSE:
-        print(f"{colors.OKGREEN}Success!\n{colors.OKCYAN}{geojson}{colors.ENDC}")
-    query_str = create_parsable_geoms(geojson)
-    print(f"{colors.OKBLUE}{query_str}{colors.ENDC}")
-    crs_list = query(query_str)
-    print(bbox_to_json(crs_list))
-    return request.form
+    if request.method == "POST":
+        global projpick_query
+        geojson = request.get_json()
+        if VERBOSE:
+            print(f"{colors.OKGREEN}Success!\n{colors.OKCYAN}{geojson}{colors.ENDC}")
+        query_str = create_parsable_geoms(geojson)
+        print(f"{colors.OKBLUE}{query_str}{colors.ENDC}")
+        crs_list = query(query_str)
+        projpick_query = bbox_to_json(crs_list)
+        # Explicetly call so async function is ran
+        get_python_data()
+        return projpick_query
+
+
+@app.route('/projdata', methods=["GET"])
+def get_python_data():
+    global projpick_query
+    return json.dumps(projpick_query)
 
 
 # RUN

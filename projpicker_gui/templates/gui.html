@@ -7,6 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin="" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.2/leaflet.draw.css" integrity="sha512-gc3xjCmIy673V6MyOAZhIW93xhM9ei1I+gLbmFjUHIjocENRsLX/QUE1htk5q1XV2D/iie/VQ8DXI6Vu8bexvQ==" crossorigin="" />
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.2/leaflet.draw.js" integrity="sha512-Grx+plkced1H9wNDvyEhO4EVPMgWmkCAlicKaCyu6rtLUr002kZj543DqBB1NULXSg0dFYur+UHwRc25FCeD+g==" crossorigin=""></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
@@ -16,6 +19,7 @@ html, body {
     height: 100%;
     margin: 0;
     padding: 0;
+    font-family: 'IBM Plex Sans Condensed', sans-serif;
 }
 
 .parent {
@@ -39,6 +43,7 @@ height: 100%
 .crs-list {
     grid-area: 4 / 5 / 10 / 7;
     border: 4px solid rgba(34.0 12 64 / 60%);
+    overflow: auto
 }
 
 .logic-buttons {
@@ -52,6 +57,40 @@ fieldset {
     border: 0;
 }
 
+
+ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+li {
+    font-size: 20px;
+    padding-left: 20px;
+}
+
+li:last-child {
+  border: none;
+}
+
+li a {
+  text-decoration: none;
+  color: #000;
+  display: block;
+  width: 100%;
+
+  -webkit-transition: font-size 0.3s ease, background-color 0.3s ease;
+  -moz-transition: font-size 0.3s ease, background-color 0.3s ease;
+  -o-transition: font-size 0.3s ease, background-color 0.3s ease;
+  -ms-transition: font-size 0.3s ease, background-color 0.3s ease;
+  transition: font-size 0.3s ease, background-color 0.3s ease;
+}
+
+li a:hover {
+  font-size: 30px;
+  background: #f6f6f6;
+}
+
 </style>
 </head>
 <body>
@@ -61,7 +100,10 @@ fieldset {
             <p> CRS Info <p>
         </div>
         <div class="crs-list">
-            <p> CRS List </p>
+            <h2>CRS List</h2>
+            <ul id="crslist" class="nav">
+
+            </ul>
         </div>
         <form class="logic-buttons" method="POST">
             <!-- fieldset to group label and button -->
@@ -84,99 +126,127 @@ fieldset {
     </div>
 </body>
 <script>
-var map = L.map(
-    'map', {
-        center: [34.2347566, -83.8676613],
-        crs: L.CRS.EPSG3857,
-        zoom: 5,
-        zoomControl: true,
-        preferCanvas: false,
-    }
-);
+    var map = L.map(
+        'map', {
+            center: [34.2347566, -83.8676613],
+            crs: L.CRS.EPSG3857,
+            zoom: 5,
+            zoomControl: true,
+            preferCanvas: false,
+        }
+    );
 
-var tileLayer = L.tileLayer(
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        'attribution': 'Data by \u0026copy; \u003ca href="http://openstreetmap.org"\u003eOpenStreetMap\u003c/a\u003e, under \u003ca href="http://www.openstreetmap.org/copyright"\u003eODbL\u003c/a\u003e.',
-        'detectRetina': false,
-        'maxNativeZoom': 18,
-        'maxZoom': 18,
-        'minZoom': 0,
-        'noWrap': true,
-        'opacity': 1,
-        'subdomains': 'abc',
-        'tms': false
-    }
-).addTo(map);
+    var tileLayer = L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            'attribution': 'Data by \u0026copy; \u003ca href="http://openstreetmap.org"\u003eOpenStreetMap\u003c/a\u003e, under \u003ca href="http://www.openstreetmap.org/copyright"\u003eODbL\u003c/a\u003e.',
+            'detectRetina': false,
+            'maxNativeZoom': 18,
+            'maxZoom': 18,
+            'minZoom': 0,
+            'noWrap': true,
+            'opacity': 1,
+            'subdomains': 'abc',
+            'tms': false
+        }
+    ).addTo(map);
 
-// FeatureGroup is to store editable layers.
-var geomsLayer = new L.geoJSON().addTo(map);
+    // FeatureGroup is to store editable layers.
+    var geomsLayer = new L.geoJSON().addTo(map);
 
-new L.Control.Draw({
-    position: 'topleft',
-    draw: {
-        'polyline': {
-            'allowIntersection': false
+    new L.Control.Draw({
+        position: 'topleft',
+        draw: {
+            'polyline': {
+                'allowIntersection': false
+            },
+            circle: false,
+            circlemarker: false,
+            polyline: false
         },
-        circle: false,
-        circlemarker: false,
-        polyline: false
-    },
-    edit: {
-        'poly': {
-            'allowIntersection': false
+        edit: {
+            'poly': {
+                'allowIntersection': false
+            },
+            'featureGroup': geomsLayer
         },
-        'featureGroup': geomsLayer
-    },
-}).addTo(map);
+    }).addTo(map);
 
-map.on(L.Draw.Event.CREATED, function (e) {
-    geomsLayer.addLayer(e.layer);
-    sendQuery();
+    map.on(L.Draw.Event.CREATED, async function (e) {
+        geomsLayer.addLayer(e.layer);
+        sendQuery();
+        var crsQuery;
 
-});
+        const data = await getData('/projdata');
+        var crs_keys = Object.keys(data);
+        populateCRSList(crs_keys);
+    });
 
-// Use main logic function to query on events.
-function sendQuery() {
-    var data = geomsLayer.toGeoJSON()
-    var logicalop = document.querySelector('input[name="logical_op"]:checked').value
-    data.logicalOperator = logicalop
-    console.log(typeof data)
-    $.ajax({
-            url: '/data',
-            contentType: 'application/json',
-            data: JSON.stringify(data),
-            type: 'POST',
-            dataType : 'json',
-            success: console.log(data)
-        })
-};
+    function populateCRSList(crs_keys) {
+        const list = document.getElementById('crslist');
+        while (list.firstChild) {
+            list.removeChild(list.firstChild);
+        }
+        const listItems = crs_keys.map( function(element) {
+                return `<li tabindex='1' id='${element}'><a href="#">${element}</a></li>` });
 
-function onClick(logical_op) {
-    sendQuery();
-}
-
-
-// Intial empty bbox geometry; Seperate layer group from geomsLayer so as to not
-// interfere with ProjPicker query.
-var bboxLayer = L.geoJSON(null, {
-    style: {
-        color: 'red',
-        opacity: 0.3
+        list.innerHTML = listItems.join('');
     }
-}).addTo(map);
 
-function drawGeometries(geoms, push=false) {
-    geomsLayer.clearLayers();
-    geomsLayer.addData(geoms);
-    map.fitBounds(geomsLayer.getBounds());
-    if (push)
-        pushGeometries();
-}
+    async function getData(url) {
+      var response = await fetch(url);
+      return response.json();
+    }
 
-function drawCRSBBox(geom) {
-    bboxLayer.clearLayers();
-    bboxLayer.addData(geom);
-    map.fitBounds(bboxLayer.getBounds());
-}
+
+
+    // Use main logic function to query on events.
+    function sendQuery() {
+        var data = geomsLayer.toGeoJSON()
+        var logicalop = document.querySelector('input[name="logical_op"]:checked').value
+        data.logicalOperator = logicalop
+        console.log(typeof data)
+        $.ajax({
+                url: '/data',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                type: 'POST',
+                dataType : 'json',
+                success: console.log(data)
+            })
+    };
+
+
+    async function onClick(logical_op) {
+        sendQuery();
+        const data = await getData('/projdata');
+        var crs_keys = Object.keys(data);
+        populateCRSList(crs_keys);
+
+    }
+
+
+
+    // Intial empty bbox geometry; Seperate layer group from geomsLayer so as to not
+    // interfere with ProjPicker query.
+    var bboxLayer = L.geoJSON(null, {
+        style: {
+            color: 'red',
+            opacity: 0.3
+        }
+    }).addTo(map);
+
+    function drawGeometries(geoms, push=false) {
+        geomsLayer.clearLayers();
+        geomsLayer.addData(geoms);
+        map.fitBounds(geomsLayer.getBounds());
+        if (push)
+            pushGeometries();
+    }
+
+    function drawCRSBBox(geom) {
+        bboxLayer.clearLayers();
+        bboxLayer.addData(geom);
+        map.fitBounds(bboxLayer.getBounds());
+    }
 </script>
 </html>
