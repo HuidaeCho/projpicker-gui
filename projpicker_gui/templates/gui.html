@@ -37,8 +37,13 @@ height: 100%
     border: 4px solid rgba(34.0 12 64 / 60%);
 }
 .crs-info {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
     grid-area: 1 / 5 / 4 / 7;
     border: 4px solid rgba(34.0 12 64 / 60%);
+    line-height: 0.2em;
+    font-size: 15px;
 }
 .crs-list {
     grid-area: 4 / 5 / 10 / 7;
@@ -100,11 +105,11 @@ li:focus {
     <div class="parent">
         <div id="map" class="map"> </div>
         <div class="crs-info">
-            <p> CRS Info <p>
+            <h2 id="crs-info" >CRS Info</h2>
         </div>
         <div class="crs-list">
             <h2>CRS List</h2>
-            <ul id="crslist" class="nav">
+            <ul id="crslist">
 
             </ul>
         </div>
@@ -190,7 +195,7 @@ li:focus {
             list.removeChild(list.firstChild);
         }
         const listItems = crs_keys.map( function(element) {
-                return `<li tabindex='1' id='${element}'>${element}</li>` });
+                return `<li tabindex='1' id='${element}' onclick='onCRSSelect()'>${element}</li>` });
 
         list.innerHTML = listItems.join('');
     }
@@ -200,6 +205,26 @@ li:focus {
       return response.json();
     }
 
+    async function onCRSSelect() {
+        var selectedId = document.activeElement.id;
+        console.log(selectedId);
+        var data = await getData('/projdata');
+        console.log(data)
+        selectedCRS = data[selectedId];
+
+        var crsInfo = document.getElementById('crs-info')
+        var crsInfoList = [];
+        crsInfoList.push(`<p>CRS Type: &ensp; ${selectedCRS.proj_table}</p>`)
+        crsInfoList.push(`<p>CRS Code: &ensp; ${selectedCRS.crs_code}</p>`)
+        crsInfoList.push(`<p>Unit: &ensp; ${selectedCRS.unit}</p>`)
+        crsInfoList.push(`<p>South: &ensp; ${selectedCRS.south_lat}</p>`)
+        crsInfoList.push(`<p>North: &ensp; ${selectedCRS.north_lat}</p>`)
+        crsInfoList.push(`<p>West: &ensp; ${selectedCRS.west_lon}</p>`)
+        crsInfoList.push(`<p>East: &ensp; ${selectedCRS.east_lon}</p>`)
+        crsInfoList.push(`<p>Area: &ensp; ${selectedCRS.area}</p>`)
+        crsInfo.innerHTML = crsInfoList.join('');
+
+    }
 
 
     // Use main logic function to query on events.
@@ -214,14 +239,14 @@ li:focus {
                 data: JSON.stringify(data),
                 type: 'POST',
                 dataType : 'json',
-                success: console.log(data)
+                success: console.log('success')
             })
     };
 
 
     async function onClick(logical_op) {
         sendQuery();
-        const data = await getData('/projdata');
+        var data = await getData('/projdata');
         var crs_keys = Object.keys(data);
         populateCRSList(crs_keys);
 
