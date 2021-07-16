@@ -73,7 +73,7 @@ li:last-child {
   border: none;
 }
 
-li a {
+li {
   text-decoration: none;
   color: #000;
   display: block;
@@ -86,9 +86,12 @@ li a {
   transition: font-size 0.3s ease, background-color 0.3s ease;
 }
 
-li a:hover {
+li:hover {
   font-size: 30px;
   background: #f6f6f6;
+}
+li:focus {
+  background: #ACACAC;
 }
 
 </style>
@@ -187,7 +190,7 @@ li a:hover {
             list.removeChild(list.firstChild);
         }
         const listItems = crs_keys.map( function(element) {
-                return `<li tabindex='1' id='${element}'><a href="#">${element}</a></li>` });
+                return `<li tabindex='1' id='${element}'>${element}</li>` });
 
         list.innerHTML = listItems.join('');
     }
