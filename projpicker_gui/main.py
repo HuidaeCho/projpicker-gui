@@ -12,5 +12,5 @@ if __name__ == '__main__':
 
     stream = StringIO()
     with redirect_stdout(stream):
-        window = webview.create_window('My first pywebview application', server)
+        window = webview.create_window('ProjPicker', server)
         webview.start(debug=True)
