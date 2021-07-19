@@ -27,7 +27,7 @@ class Geometry:
             # iteration
             latlon_coors = []
             for lonlat in coors[0]:
-                latlon_coors.serverend(lonlat[::-1])
+                latlon_coors.append(lonlat[::-1])
             self.coors = list(latlon_coors)
 
 
@@ -74,6 +74,7 @@ def query(geoms):
     crs_list = []
     crs = []
     if geoms is not None:
+        print(geoms)
         parsed_geoms = ppik.parse_mixed_geoms(geoms)
         crs.extend(ppik.query_mixed_geoms(parsed_geoms))
         if VERBOSE:

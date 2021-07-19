@@ -105,7 +105,7 @@ li:focus {
     <div class="parent">
         <div id="map" class="map"> </div>
         <div class="crs-info">
-            <h2 id="crs-info" >CRS Info</h2>
+            <p id="crs-info" >CRS Info</p>
         </div>
         <div class="crs-list">
             <h2>CRS List</h2>
@@ -181,12 +181,10 @@ li:focus {
 
     map.on(L.Draw.Event.CREATED, async function (e) {
         geomsLayer.addLayer(e.layer);
-        sendQuery();
-        var crsQuery;
+        await sendQuery();
 
-        const data = await getData('/projdata');
-        var crs_keys = Object.keys(data);
-        populateCRSList(crs_keys);
+        await getData('/projdata')
+            .then(data => populateCRSList(Object.keys(data)))
     });
 
     function populateCRSList(crs_keys) {
@@ -212,6 +210,13 @@ li:focus {
         console.log(data)
         selectedCRS = data[selectedId];
 
+        var s = selectedCRS.south_lat
+        var n = selectedCRS.north_lat
+        var w = selectedCRS.west_lon
+        var e = selectedCRS.east_lon
+
+        var coors = [[[w, n], [e, n], [e, s], [w, s]]]
+
         var crsInfo = document.getElementById('crs-info')
         var crsInfoList = [];
         crsInfoList.push(`<p>CRS Type: &ensp; ${selectedCRS.proj_table}</p>`)
@@ -224,11 +229,15 @@ li:focus {
         crsInfoList.push(`<p>Area: &ensp; ${selectedCRS.area}</p>`)
         crsInfo.innerHTML = crsInfoList.join('');
 
+        console.log(coors)
+
+        drawCRSBBox(coors)
+
     }
 
 
     // Use main logic function to query on events.
-    function sendQuery() {
+    async function sendQuery() {
         var data = geomsLayer.toGeoJSON()
         var logicalop = document.querySelector('input[name="logical_op"]:checked').value
         data.logicalOperator = logicalop
@@ -239,20 +248,15 @@ li:focus {
                 data: JSON.stringify(data),
                 type: 'POST',
                 dataType : 'json',
-                success: console.log('success')
             })
     };
 
-
     async function onClick(logical_op) {
-        sendQuery();
-        var data = await getData('/projdata');
-        var crs_keys = Object.keys(data);
-        populateCRSList(crs_keys);
+        await sendQuery();
+        await getData('/projdata')
+            .then(data => populateCRSList(Object.keys(data)));
 
     }
-
-
 
     // Intial empty bbox geometry; Seperate layer group from geomsLayer so as to not
     // interfere with ProjPicker query.
@@ -273,7 +277,10 @@ li:focus {
 
     function drawCRSBBox(geom) {
         bboxLayer.clearLayers();
-        bboxLayer.addData(geom);
+        bboxLayer.addData({
+            "type": "Polygon",
+            "coordinates": geom
+        });
         map.fitBounds(bboxLayer.getBounds());
     }
 </script>
