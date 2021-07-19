@@ -1,30 +1,14 @@
 #!/bin/env python3
 import os
+import sys
 import json
 import projpicker as ppik
+import webview
+import threading
 from flask import Flask, render_template, request, session
 
-class colors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
 
-app = Flask(__name__, )
-app.debug = True
-app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.secret_key = 'dljsaklqk24e21cjn!Ew@@dsa5'
-
-#################################
-# Constants
 VERBOSE = True
-MAP = "gui.html"
-
 
 #################################
 # Geometry
@@ -43,7 +27,7 @@ class Geometry:
             # iteration
             latlon_coors = []
             for lonlat in coors[0]:
-                latlon_coors.append(lonlat[::-1])
+                latlon_coors.serverend(lonlat[::-1])
             self.coors = list(latlon_coors)
 
 
@@ -64,6 +48,16 @@ def create_parsable_geoms(geojson):
 
     return geoms
 
+class colors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 def bbox_to_json(bbox_list):
     crs_json = {}
@@ -88,37 +82,3 @@ def query(geoms):
 
     return crs
 
-
-# WEB LOGIC
-projpick_query = ""
-@app.route("/")
-def home():
-    global projpick_query
-    return render_template(MAP, projpick_query="")
-
-
-@app.route('/data', methods=["POST", "GET"])
-def get_javascript_data():
-    if request.method == "POST":
-        global projpick_query
-        geojson = request.get_json()
-        if VERBOSE:
-            print(f"{colors.OKGREEN}Success!\n{colors.OKCYAN}{geojson}{colors.ENDC}")
-        query_str = create_parsable_geoms(geojson)
-        print(f"{colors.OKBLUE}{query_str}{colors.ENDC}")
-        crs_list = query(query_str)
-        projpick_query = bbox_to_json(crs_list)
-        # Explicetly call so async function is ran
-        get_python_data()
-        return projpick_query
-
-
-@app.route('/projdata', methods=["GET"])
-def get_python_data():
-    global projpick_query
-    return json.dumps(projpick_query)
-
-
-# RUN
-if __name__ == '__main__':
-    app.run()
