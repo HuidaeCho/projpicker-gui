@@ -20,7 +20,7 @@ that wraps around this project is available. It is a work in progress; join
 
 ## Change log
 
-See [here](https://github.com/HuidaeCho/projpicker-gui/blob/main/projpicker-gui/ChangeLog.md).
+See [here](https://github.com/HuidaeCho/projpicker-gui/blob/main/ChangeLog.md).
 
 ## Versioning
 
